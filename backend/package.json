@@ -1,0 +1,9 @@
+{
+  "name": "dopamind-backend",
+  "private": true,
+  "engines": { "node": ">=22" },
+  "workspaces": ["libs/*", "services/*"],
+  "scripts": {
+    "test": "node --test --test-concurrency=1 \"libs/**/test/*.test.js\" \"services/**/test/*.test.js\""
+  }
+}
