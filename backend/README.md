@@ -7,7 +7,7 @@ Arquitectura y decisiones en `docs/`; contratos en `contracts/`.
 
 ```bash
 cd backend
-bash scripts/setup-dev.sh        # crea .env con contraseñas aleatorias y las llaves JWT
+node scripts/setup-dev.js        # crea .env con contraseñas aleatorias y las llaves JWT (funciona en Windows)
 docker compose up --build -d
 node scripts/smoke.js http://localhost:3000 --wait-events
 ```

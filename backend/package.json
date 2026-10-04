@@ -11,6 +11,7 @@
   "scripts": {
     "pretest": "bash scripts/provision-test-db.sh",
     "test": "node --test --test-concurrency=1 --test-timeout=30000 \"libs/**/test/*.test.js\" \"services/**/test/*.test.js\"",
-    "smoke": "node scripts/smoke.js"
+    "smoke": "node scripts/smoke.js",
+    "setup": "node scripts/setup-dev.js"
   }
 }
