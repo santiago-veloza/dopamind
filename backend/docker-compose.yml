@@ -39,8 +39,6 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
       - ./db/schemas:/schemas:ro
-    ports:
-      - "127.0.0.1:5433:5432"   # solo desde tu máquina
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -57,7 +55,7 @@ services:
     volumes:
       - rabbitdata:/var/lib/rabbitmq
     ports:
-      - "127.0.0.1:15672:15672"   # panel web, solo local
+      - "127.0.0.1:${RABBITMQ_UI_PORT:-15672}:15672"   # panel web, solo local
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -159,7 +157,7 @@ services:
     <<: *service
     build: { context: ., args: { SERVICE: gateway } }
     ports:
-      - "3000:3000"
+      - "${GATEWAY_PORT:-3000}:3000"
     environment:
       PORT: 3000
       JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public_key

@@ -14,6 +14,8 @@ node scripts/smoke.js http://localhost:3000 --wait-events
 
 Si ya habías levantado una versión anterior: `docker compose down -v` (cambian los roles de la base y las colas de RabbitMQ).
 
+Si Windows dice que un puerto está prohibido, cámbialo en `.env` (`GATEWAY_PORT`, `RABBITMQ_UI_PORT`) o mira los reservados con `netsh interface ipv4 show excludedportrange protocol=tcp`.
+
 La app Android (emulador) llega al gateway en `http://10.0.2.2:3000`; un celular físico, en `http://<IP-de-tu-PC>:3000`.
 
 ## Pruebas
