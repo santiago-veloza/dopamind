@@ -1,0 +1,23 @@
+name: dopamind
+description: App móvil de tareas y bienestar digital.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.5
+  http: ^1.6.0
+  # pub elige la 11.x si tu Dart es >= 3.8 y la 10.3.4 si no
+  flutter_secure_storage: ">=10.3.4 <12.0.0"
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ">=4.0.0 <7.0.0"
+
+flutter:
+  uses-material-design: true
