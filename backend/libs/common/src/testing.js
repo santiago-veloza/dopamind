@@ -63,3 +63,36 @@ async function call(url, { method = 'GET', body, token, headers = {} } = {}) {
 }
 
 module.exports = { generateKeyPair, silentLogger, testPool, listen, call };
+
+const jwt = require('jsonwebtoken');
+
+// Access token válido para un usuario de prueba
+function signTestAccessToken(privateKey, userId, overrides = {}) {
+  return jwt.sign({ token_use: 'access', ...overrides.claims }, privateKey, {
+    algorithm: 'RS256',
+    issuer: 'dopamind-auth',
+    audience: 'dopamind-api',
+    subject: String(userId),
+    expiresIn: 300,
+    ...overrides.options,
+  });
+}
+
+// Canal falso: guarda lo publicado; failOn(n) hace fallar el n-ésimo publish (1 = el primero)
+function fakeChannel({ failOn = null } = {}) {
+  const published = [];
+  let count = 0;
+  return {
+    published,
+    publish(exchange, routingKey, content, options, cb) {
+      count++;
+      if (count === failOn) return cb(new Error('nack simulado'));
+      published.push({ exchange, routingKey, body: JSON.parse(content.toString()), options });
+      cb(null);
+      return true;
+    },
+  };
+}
+
+module.exports.signTestAccessToken = signTestAccessToken;
+module.exports.fakeChannel = fakeChannel;

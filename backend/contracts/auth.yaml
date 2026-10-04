@@ -1,0 +1,143 @@
+openapi: 3.0.3
+info:
+  title: DopamiND — Auth Service
+  description: "Registro, login y sesión del usuario. Puerto 3001 (a través del Gateway: 3000)."
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: API Gateway (puerto único de entrada)
+paths:
+  /auth/register:
+    post:
+      summary: Registrar un usuario nuevo
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                  description: Entre 8 caracteres y 72 bytes (límite de bcrypt)
+                display_name:
+                  type: string
+      responses:
+        "201":
+          description: Usuario creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400": { description: Datos inválidos }
+        "409":
+          description: El email ya está registrado
+  /auth/login:
+    post:
+      summary: Iniciar sesión
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: Tokens emitidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Credenciales inválidas
+  /auth/refresh:
+    post:
+      summary: Renovar tokens (rotación)
+      description: >-
+        Cada refresh token se usa una sola vez. Si se reutiliza uno ya usado,
+        se revoca toda la sesión (familia) y devuelve 401.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "200":
+          description: Tokens nuevos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Refresh token inválido o expirado
+  /auth/logout:
+    post:
+      summary: Cerrar sesión (revoca la familia del refresh token)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "204": { description: Sesión cerrada (también si el token no era válido) }
+  /auth/me:
+    get:
+      summary: Obtener el usuario del token actual
+      responses:
+        "200":
+          description: Datos del usuario
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+        "401":
+          description: Token inválido o ausente
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        display_name: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+    AuthResponse:
+      type: object
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        accessToken:
+          type: string
+          description: JWT RS256, válido 15 minutos. Es el único que acepta la API.
+        refreshToken:
+          type: string
+          description: JWT RS256, válido 7 días, de un solo uso. Solo sirve en /auth/refresh y /auth/logout.
+security:
+  - bearerAuth: []

@@ -7,4 +7,5 @@ module.exports = {
   ...require('./auth'),
   ...require('./outbox'),
   ...require('./broker'),
+  ...require('./publisher'),
 };

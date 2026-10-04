@@ -1,0 +1,176 @@
+name: dopamind-backend
+
+# Plantilla común de los servicios de la app
+x-service: &service
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  networks: [backend]
+
+secrets:
+  jwt_public_key:
+    file: ./keys/jwt-public.pem
+  jwt_private_key:
+    file: ./keys/jwt-private.pem
+
+networks:
+  backend:
+
+volumes:
+  pgdata:
+  rabbitdata:
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks: [backend]
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en .env}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?define AUTH_DB_PASSWORD en .env}
+      TASK_DB_PASSWORD: ${TASK_DB_PASSWORD:?define TASK_DB_PASSWORD en .env}
+      JOURNAL_DB_PASSWORD: ${JOURNAL_DB_PASSWORD:?define JOURNAL_DB_PASSWORD en .env}
+      ACHIEVEMENT_DB_PASSWORD: ${ACHIEVEMENT_DB_PASSWORD:?define ACHIEVEMENT_DB_PASSWORD en .env}
+      FOCUS_DB_PASSWORD: ${FOCUS_DB_PASSWORD:?define FOCUS_DB_PASSWORD en .env}
+      SCHEMAS_DIR: /schemas
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - ./db/schemas:/schemas:ro
+    ports:
+      - "127.0.0.1:5433:5432"   # solo desde tu máquina
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    networks: [backend]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?define RABBITMQ_USER en .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?define RABBITMQ_PASSWORD en .env}
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq
+    ports:
+      - "127.0.0.1:15672:15672"   # panel web, solo local
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  auth:
+    <<: *service
+    build: { context: ., args: { SERVICE: auth } }
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgres://auth_svc:${AUTH_DB_PASSWORD}@postgres:5432/auth_db
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public_key
+      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt_private_key
+    secrets: [jwt_public_key, jwt_private_key]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  task:
+    <<: *service
+    build: { context: ., args: { SERVICE: task } }
+    environment:
+      PORT: 3002
+      DATABASE_URL: postgres://task_svc:${TASK_DB_PASSWORD}@postgres:5432/task_db
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public_key
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+    secrets: [jwt_public_key]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  journal:
+    <<: *service
+    build: { context: ., args: { SERVICE: journal } }
+    environment:
+      PORT: 3003
+      DATABASE_URL: postgres://journal_svc:${JOURNAL_DB_PASSWORD}@postgres:5432/journal_db
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public_key
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+    secrets: [jwt_public_key]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3003/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  achievement:
+    <<: *service
+    build: { context: ., args: { SERVICE: achievement } }
+    environment:
+      PORT: 3004
+      DATABASE_URL: postgres://achievement_svc:${ACHIEVEMENT_DB_PASSWORD}@postgres:5432/achievement_db
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public_key
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+    secrets: [jwt_public_key]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3004/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  focus:
+    <<: *service
+    build: { context: ., args: { SERVICE: focus } }
+    environment:
+      PORT: 3005
+      DATABASE_URL: postgres://focus_svc:${FOCUS_DB_PASSWORD}@postgres:5432/focus_db
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public_key
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+    secrets: [jwt_public_key]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3005/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  # Único servicio expuesto. No espera a los demás: si uno cae, el gateway lo aísla.
+  gateway:
+    <<: *service
+    build: { context: ., args: { SERVICE: gateway } }
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public_key
+      AUTH_URL: http://auth:3001
+      TASK_URL: http://task:3002
+      JOURNAL_URL: http://journal:3003
+      ACHIEVEMENT_URL: http://achievement:3004
+      FOCUS_URL: http://focus:3005
+    secrets: [jwt_public_key]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6

@@ -1,0 +1,96 @@
+openapi: 3.0.3
+info:
+  title: DopamiND — Focus/Timer Service
+  description: Sesiones de enfoque (Pomodoro) y meditación. Puerto 3005.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: API Gateway
+paths:
+  /focus-sessions:
+    get:
+      summary: Historial de sesiones + resumen
+      parameters:
+        - name: type
+          in: query
+          schema: { type: string, enum: [mindfulness, focus] }
+          description: Filtrar por tipo de sesión
+      responses:
+        "200":
+          description: Sesiones (últimas 100) y totales por tipo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  focus_sessions:
+                    type: array
+                    items: { $ref: "#/components/schemas/FocusSession" }
+                  summary:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type: { type: string }
+                        session_count: { type: integer }
+                        total_minutes: { type: integer }
+        "401": { description: Token requerido }
+    post:
+      summary: Guardar una sesión completada
+      description: Publica el evento `focus.completed` (vía outbox).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, duration_minutes]
+              properties:
+                type:
+                  type: string
+                  enum: [mindfulness, focus]
+                duration_minutes:
+                  type: integer
+                  minimum: 1
+                  maximum: 720
+                started_at:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  description: Por defecto se usa la hora actual
+      responses:
+        "201":
+          description: Sesión guardada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  focus_session: { $ref: "#/components/schemas/FocusSession" }
+        "400": { description: Tipo inválido, duración fuera de 1..720 o started_at en el futuro }
+  /focus-sessions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    delete:
+      summary: Eliminar una sesión
+      responses:
+        "200": { description: Eliminada }
+        "404": { description: No encontrada }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    FocusSession:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        type: { type: string, enum: [mindfulness, focus] }
+        duration_minutes: { type: integer }
+        started_at: { type: string, format: date-time }
+        completed: { type: boolean }
+security:
+  - bearerAuth: []

@@ -23,6 +23,7 @@ function publishConfirmed(channel, exchange, row) {
 
 function createOutboxRelay({ pool, getChannel, exchange, logger, batchSize = 50, intervalMs = 1000 }) {
   let timer = null;
+  let purgeTimer = null;
   let running = false;
 
   // Publica lo pendiente. Devuelve cuántos eventos se confirmaron.
@@ -58,7 +59,20 @@ function createOutboxRelay({ pool, getChannel, exchange, logger, batchSize = 50,
     return sent;
   }
 
+  // borra lo ya publicado hace más de N días para que la tabla no crezca
+  async function purgePublished(days = 7) {
+    await pool.query(
+      "DELETE FROM outbox WHERE published_at < now() - make_interval(days => $1)",
+      [days]
+    );
+  }
+
   function start() {
+    purgeTimer = setInterval(
+      () => purgePublished().catch((err) => logger.error('no se pudo limpiar el outbox', { err })),
+      60 * 60 * 1000
+    );
+    purgeTimer.unref();
     timer = setInterval(async () => {
       if (running) return;
       running = true;
@@ -75,9 +89,10 @@ function createOutboxRelay({ pool, getChannel, exchange, logger, batchSize = 50,
 
   function stop() {
     if (timer) clearInterval(timer);
+    if (purgeTimer) clearInterval(purgeTimer);
   }
 
-  return { relayOnce, start, stop };
+  return { relayOnce, purgePublished, start, stop };
 }
 
 module.exports = { enqueueEvent, createOutboxRelay };

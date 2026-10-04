@@ -1,0 +1,162 @@
+openapi: 3.0.3
+info:
+  title: DopamiND — Task Service
+  description: CRUD de tareas y tareas predefinidas. Publica el evento `task.completed`.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: API Gateway
+paths:
+  /tasks:
+    get:
+      summary: Listar tareas del usuario autenticado
+      parameters:
+        - name: completed
+          in: query
+          schema: { type: boolean }
+          description: Filtrar por completadas (true/false)
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: priority
+          in: query
+          schema: { type: string, enum: [high, medium, low] }
+      responses:
+        "200":
+          description: Lista de tareas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items: { $ref: "#/components/schemas/Task" }
+        "401": { description: Token requerido }
+    post:
+      summary: Crear una tarea
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string }
+                description: { type: string, nullable: true }
+                priority: { type: string, enum: [high, medium, low], default: medium }
+                category: { type: string, default: general }
+                scheduled_hour: { type: integer, nullable: true, minimum: 0, maximum: 23 }
+                scheduled_minute: { type: integer, nullable: true, minimum: 0, maximum: 59 }
+                due_date: { type: string, format: date-time, nullable: true }
+                verification_keywords:
+                  type: array
+                  items: { type: string }
+                  description: Palabras que la IA debe detectar en la foto
+      responses:
+        "201":
+          description: Tarea creada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task: { $ref: "#/components/schemas/Task" }
+  /tasks/predefined:
+    get:
+      summary: Catálogo de tareas predefinidas (23 de la app)
+      responses:
+        "200":
+          description: Catálogo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  predefined_tasks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        title: { type: string }
+                        description: { type: string }
+                        priority: { type: string }
+                        category: { type: string }
+                        icon: { type: string }
+                        verification_keywords: { type: string }
+  /tasks/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      summary: Obtener una tarea
+      responses:
+        "200": { description: Tarea encontrada }
+        "404": { description: No encontrada }
+    put:
+      summary: Actualizar una tarea
+      description: >-
+        Si `completed` pasa de false a true, el servicio publica el evento
+        `task.completed` (vía outbox, en la misma transacción). `completed_at` lo pone
+        el servidor; si se envía, se ignora. Completar la misma tarea otra vez no vuelve a premiar.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                description: { type: string, nullable: true }
+                priority: { type: string }
+                category: { type: string }
+                completed: { type: boolean }
+                photo_verified: { type: boolean }
+                photo_path: { type: string, nullable: true }
+                due_date: { type: string, format: date-time, nullable: true }
+                scheduled_hour: { type: integer, nullable: true, minimum: 0, maximum: 23 }
+                scheduled_minute: { type: integer, nullable: true, minimum: 0, maximum: 59 }
+                verification_keywords:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200": { description: Tarea actualizada }
+        "400": { description: Cuerpo vacío o con tipos inválidos }
+        "404": { description: No encontrada }
+    delete:
+      summary: Eliminar una tarea
+      responses:
+        "200": { description: Eliminada }
+        "404": { description: No encontrada }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    Task:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        priority: { type: string, enum: [high, medium, low] }
+        category: { type: string }
+        completed: { type: boolean }
+        photo_verified: { type: boolean }
+        photo_path: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time, nullable: true }
+        due_date: { type: string, format: date-time, nullable: true }
+        scheduled_hour: { type: integer, nullable: true }
+        scheduled_minute: { type: integer, nullable: true }
+        verification_keywords:
+          type: array
+          items: { type: string }
+security:
+  - bearerAuth: []

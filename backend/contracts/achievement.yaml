@@ -1,0 +1,84 @@
+openapi: 3.0.3
+info:
+  title: DopamiND — Achievement Service
+  description: >-
+    Logros, puntos, nivel y racha del usuario. Todo se calcula en el servidor a partir de
+    eventos (task.completed, journal.created, focus.completed); el cliente solo consulta.
+    Puerto 3004 (a través del Gateway: 3000).
+  version: 2.0.0
+servers:
+  - url: http://localhost:3000
+    description: API Gateway
+paths:
+  /achievements:
+    get:
+      summary: Listar los 12 logros del usuario
+      description: Si es la primera vez, se siembran los 12 logros de la app.
+      responses:
+        "200":
+          description: Lista de logros
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  achievements:
+                    type: array
+                    items: { $ref: "#/components/schemas/Achievement" }
+        "401": { description: Token requerido }
+  /progress:
+    get:
+      summary: Puntos, nivel y racha
+      responses:
+        "200":
+          description: Progreso del usuario (ceros si aún no hay actividad)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  progress: { $ref: "#/components/schemas/Progress" }
+        "401": { description: Token requerido }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    Achievement:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        key: { type: string, description: "first_task, streak_3, streak_7, streak_30, mindful_1, mindful_10, focus_1, focus_10, journal_1, journal_7, photo_verify, tasks_50" }
+        title: { type: string }
+        description: { type: string }
+        icon: { type: string }
+        unlocked: { type: boolean }
+        unlocked_at: { type: string, format: date-time, nullable: true }
+        required_value: { type: integer }
+        current_value: { type: integer, description: Nunca pasa de required_value }
+    Progress:
+      type: object
+      properties:
+        points: { type: integer }
+        level: { type: integer, description: "floor(points / 100) + 1" }
+        level_progress: { type: number, format: float, description: "0 a 1 dentro del nivel" }
+        current_streak: { type: integer }
+        best_streak: { type: integer }
+events:
+  description: >-
+    Exchange `dopamind.events` (topic). Cola `achievement.events` con DLQ `achievement.events.dlq`.
+    `eventId` es la clave de idempotencia: el mismo evento solo se aplica una vez.
+  task.completed:
+    payload: { eventId: "task:<id>", taskId: integer, userId: integer, completedAt: date-time, photoVerified: boolean }
+    effect: "+10 puntos (+15 con foto); first_task, tasks_50 (y photo_verify)"
+  journal.created:
+    payload: { eventId: "journal:<id>", entryId: integer, userId: integer, createdAt: date-time }
+    effect: "+5 puntos; journal_1, journal_7"
+  focus.completed:
+    payload: { eventId: "focus:<id>", sessionId: integer, userId: integer, type: "focus|mindfulness", durationMinutes: integer, startedAt: date-time }
+    effect: "focus: minutos x3 y focus_1/focus_10; mindfulness: minutos x2 y mindful_1/mindful_10"
+  streak: >-
+    Cada evento cuenta como actividad del día. El día se mide en STREAK_TIMEZONE
+    (por defecto America/Bogota).
+security:
+  - bearerAuth: []

@@ -1,9 +1,16 @@
 {
   "name": "dopamind-backend",
   "private": true,
-  "engines": { "node": ">=22" },
-  "workspaces": ["libs/*", "services/*"],
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "libs/*",
+    "services/*"
+  ],
   "scripts": {
-    "test": "node --test --test-concurrency=1 \"libs/**/test/*.test.js\" \"services/**/test/*.test.js\""
+    "pretest": "bash scripts/provision-test-db.sh",
+    "test": "node --test --test-concurrency=1 --test-timeout=30000 \"libs/**/test/*.test.js\" \"services/**/test/*.test.js\"",
+    "smoke": "node scripts/smoke.js"
   }
 }
