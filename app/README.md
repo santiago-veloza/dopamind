@@ -6,12 +6,12 @@ Consume el backend de microservicios por el gateway (`backend/`). Pantallas: ini
 
 Necesitas Flutter instalado (versión estable reciente) y un emulador o celular Android.
 
-```bash
+```powershell
 cd app
 flutter create --platforms=android --project-name dopamind --org com.dopamind .
 git checkout -- lib test pubspec.yaml analysis_options.yaml .gitignore   # por si flutter create tocó algo
-rm -f test/widget_test.dart          # el de ejemplo no aplica
-python3 tool/prepare_android.py      # permiso de internet, http en debug, sin backup automático
+Remove-Item test/widget_test.dart -ErrorAction SilentlyContinue         # el de ejemplo no aplica
+node tool/prepare_android.js         # permiso de internet, http en debug, sin backup automático
 flutter pub get
 flutter analyze
 flutter test
