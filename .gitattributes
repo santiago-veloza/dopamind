@@ -1,0 +1,11 @@
+# Siempre saltos de línea LF: en Windows, CRLF rompe los scripts que corren dentro de Linux/Docker
+*.sh text eol=lf
+*.sql text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.py text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+*.pem text eol=lf
