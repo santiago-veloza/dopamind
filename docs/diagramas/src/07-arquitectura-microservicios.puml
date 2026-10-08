@@ -1,0 +1,33 @@
+' Proyecto: DopamiND | Vista: arquitectura de microservicios | Versión: 1.0.0 | Actualizado: 2026-10-08
+@startuml 07-arquitectura-microservicios
+!include ../_estilo.puml
+top to bottom direction
+actor "Usuario" as U
+node "App Android\n(Flutter)" as App
+rectangle "Frontera pública (único puerto expuesto: 3000)" as PUB {
+  component "API Gateway\nverifica JWT con la llave pública\nlímite de tasa · tiempo de espera 5 s\ncircuit breaker por servicio" as GW
+}
+rectangle "Red interna de Docker (sin puertos publicados)" as NET {
+  component "auth :3001\nbase: auth_db\nfirma los JWT (RS256)" as A
+  component "task :3002\nbase: task_db\ntabla outbox" as T
+  component "journal :3003\nbase: journal_db\ntabla outbox" as J
+  component "focus :3005\nbase: focus_db\ntabla outbox" as F
+  component "achievement :3004\nbase: achievement_db\nconsumidor idempotente\npuntos, nivel y racha" as AC
+  queue "RabbitMQ\nexchange dopamind.events" as MQ
+}
+U --> App
+App --> GW : HTTP + JWT
+GW --> A : /auth
+GW --> T : /tasks
+GW --> J : /journal-entries
+GW --> F : /focus-sessions
+GW --> AC : /achievements\n/progress
+T --> MQ : task.completed
+J --> MQ : journal.created
+F --> MQ : focus.completed
+MQ --> AC : achievement.events
+note bottom of AC
+  Una instancia de PostgreSQL 16 con cinco bases
+  y un rol por servicio (solo DML, sin acceso a otras bases)
+end note
+@enduml
