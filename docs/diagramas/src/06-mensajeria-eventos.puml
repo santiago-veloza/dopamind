@@ -1,0 +1,29 @@
+' Proyecto: DopamiND | Vista: topología de mensajería | Versión: 1.0.0 | Actualizado: 2026-10-08
+@startuml 06-mensajeria-eventos
+!include ../_estilo.puml
+
+package "Productores (servicios task, journal, focus)" {
+  database "Tabla outbox\n(misma transacción\nque el cambio)" as OB
+  [Relay de outbox\nSELECT ... FOR UPDATE\nSKIP LOCKED\ncon confirmación del broker] as RL
+}
+package "RabbitMQ" {
+  queue "Exchange dopamind.events\n(tipo topic, durable)" as EX
+  queue "Cola achievement.events\n(durable)" as Q
+  queue "Exchange de mensajes muertos\n(tipo fanout)" as DLX
+  queue "Cola achievement.events.dlq" as DLQ
+}
+package "Consumidor (servicio achievement)" {
+  [Consumidor\nprefetch = 1\nack / nack] as CO
+  database "processed_events\n(idempotencia)" as PE
+  database "achievements, user_progress\n(puntos, nivel, racha)" as AP
+}
+OB --> RL : eventos sin publicar
+RL --> EX : task.completed\njournal.created\nfocus.completed
+EX --> Q : 3 claves de enrutamiento
+Q --> CO : entrega
+CO --> PE : INSERT ... ON CONFLICT\nDO NOTHING
+CO --> AP : actualiza en la\nmisma transacción
+CO ..> Q : nack con reintento\n(primer fallo)
+Q ..> DLX : segundo fallo\n(nack sin reintento)
+DLX --> DLQ
+@enduml
