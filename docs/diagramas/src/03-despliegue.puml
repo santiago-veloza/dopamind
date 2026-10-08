@@ -1,0 +1,34 @@
+' Proyecto: DopamiND | Vista: despliegue (desarrollo) | Versión: 1.0.0 | Actualizado: 2026-10-08
+@startuml 03-despliegue
+!include ../_estilo.puml
+node "Dispositivo Android\n(emulador o celular)" <<device>> as Dev {
+  artifact "App DopamiND (Flutter)" as App
+}
+node "Equipo de desarrollo (Windows)" <<device>> {
+  node "Docker Compose" <<executionEnvironment>> {
+    node "gateway" <<container>> as GW
+    node "auth" <<container>> as Auth
+    node "task" <<container>> as Task
+    node "journal" <<container>> as Journal
+    node "focus" <<container>> as Focus
+    node "achievement" <<container>> as Ach
+    node "postgres 16\n(5 bases de datos)" <<container>> as PG
+    node "rabbitmq 3" <<container>> as MQ
+  }
+}
+App --> GW : HTTP 3000
+GW --> Auth : HTTP (red interna)
+GW --> Task : HTTP (red interna)
+GW --> Journal : HTTP (red interna)
+GW --> Focus : HTTP (red interna)
+GW --> Ach : HTTP (red interna)
+Auth --> PG : TCP 5432
+Task --> PG : TCP 5432
+Journal --> PG : TCP 5432
+Focus --> PG : TCP 5432
+Ach --> PG : TCP 5432
+Task --> MQ : AMQP 5672
+Journal --> MQ : AMQP 5672
+Focus --> MQ : AMQP 5672
+MQ --> Ach : AMQP 5672
+@enduml

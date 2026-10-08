@@ -1,0 +1,36 @@
+' Proyecto: DopamiND | Vista: componentes | Versión: 1.0.0 | Actualizado: 2026-10-08
+@startuml 02-componentes
+!include ../_estilo.puml
+package "Cliente" {
+  [App Android (Flutter)] as App
+}
+package "Backend" {
+  [API Gateway\n(enrutamiento, JWT, límite de tasa,\ncircuit breaker)] as GW
+  [Servicio auth] as Auth
+  [Servicio task] as Task
+  [Servicio journal] as Journal
+  [Servicio focus] as Focus
+  [Servicio achievement] as Ach
+}
+queue "RabbitMQ\nexchange dopamind.events" as MQ
+database "auth_db" as DBA
+database "task_db" as DBT
+database "journal_db" as DBJ
+database "focus_db" as DBF
+database "achievement_db" as DBL
+App --> GW : HTTP / JSON
+GW --> Auth
+GW --> Task
+GW --> Journal
+GW --> Focus
+GW --> Ach
+Auth --> DBA : SQL
+Task --> DBT : SQL
+Journal --> DBJ : SQL
+Focus --> DBF : SQL
+Ach --> DBL : SQL
+Task --> MQ : task.completed
+Journal --> MQ : journal.created
+Focus --> MQ : focus.completed
+MQ --> Ach : achievement.events
+@enduml

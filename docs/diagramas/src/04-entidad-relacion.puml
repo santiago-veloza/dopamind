@@ -1,0 +1,112 @@
+' Proyecto: DopamiND | Vista: entidad-relación | Versión: 1.0.0 | Actualizado: 2026-10-08
+' Fuente: backend/db/schemas/*.sql. Entre servicios user_id es referencia lógica (sin FK).
+@startuml 04-entidad-relacion
+!include ../_estilo.puml
+hide circle
+package "auth_db" {
+  entity users {
+    * id : serial <<PK>>
+    --
+    * email : text <<UK>>
+    * password_hash : text
+    display_name : text
+    * created_at : timestamptz
+  }
+  entity refresh_tokens {
+    * jti : uuid <<PK>>
+    --
+    * family_id : uuid
+    * user_id : integer <<FK>>
+    * expires_at : timestamptz
+    revoked_at : timestamptz
+    replaced_by : uuid
+    * created_at : timestamptz
+  }
+}
+package "task_db" {
+  entity tasks {
+    * id : serial <<PK>>
+    --
+    * user_id : integer
+    * title : text
+    description : text
+    * priority : text
+    * category : text
+    * completed : boolean
+    * photo_verified : boolean
+    completed_at : timestamptz
+    due_date : timestamptz
+  }
+  entity predefined_tasks {
+    * id : serial <<PK>>
+    --
+    * title : text <<UK>>
+    * description : text
+    * priority : text
+    * category : text
+  }
+  entity "outbox (task)" as ob_t {
+    * id : bigserial <<PK>>
+    --
+    * event_id : text <<UK>>
+    * routing_key : text
+    * payload : jsonb
+    published_at : timestamptz
+  }
+}
+package "journal_db" {
+  entity journal_entries {
+    * id : serial <<PK>>
+    --
+    * user_id : integer
+    * content : text
+    prompt : text
+    * mood : integer
+    * created_at : timestamptz
+  }
+}
+package "focus_db" {
+  entity focus_sessions {
+    * id : serial <<PK>>
+    --
+    * user_id : integer
+    * type : text
+    * duration_minutes : integer
+    * started_at : timestamptz
+    * completed : boolean
+  }
+}
+package "achievement_db" {
+  entity achievements {
+    * id : serial <<PK>>
+    --
+    * user_id : integer
+    * key : text
+    * title : text
+    * unlocked : boolean
+    * required_value : integer
+    * current_value : integer
+  }
+  entity user_progress {
+    * user_id : integer <<PK>>
+    --
+    * points : integer
+    * current_streak : integer
+    * best_streak : integer
+    last_active_date : date
+  }
+  entity processed_events {
+    * event_id : text <<PK>>
+    --
+    * processed_at : timestamptz
+  }
+}
+users ||--o{ refresh_tokens : emite
+tasks -[hidden]down-> journal_entries
+refresh_tokens -[hidden]down-> focus_sessions
+predefined_tasks -[hidden]down-> achievements
+note bottom of ob_t
+  journal_db y focus_db tienen una
+  tabla outbox con la misma estructura.
+end note
+@enduml

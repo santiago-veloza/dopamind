@@ -1,0 +1,9 @@
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 13
+skinparam ArrowColor #334155
+skinparam ClassBorderColor #334155
+skinparam ClassBackgroundColor #F8FAFC
+skinparam backgroundColor white
+hide empty members

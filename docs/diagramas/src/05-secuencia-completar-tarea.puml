@@ -1,0 +1,31 @@
+' Proyecto: DopamiND | Vista: secuencia UC-06 | Versión: 1.0.1 | Actualizado: 2026-10-08
+@startuml 05-secuencia-completar-tarea
+!include ../_estilo.puml
+skinparam maxMessageSize 170
+autonumber
+participant "App Android" as App
+participant "API Gateway" as GW
+participant "Servicio task" as Task
+queue "RabbitMQ" as MQ
+participant "Servicio achievement" as Ach
+App -> GW : PUT /tasks/{id} (JWT)
+GW -> GW : verifica JWT y límite de tasa
+alt token inválido o expirado
+  GW --> App : 401
+else válido
+  GW -> Task : PUT /tasks/{id}
+  Task -> Task : UPDATE tasks e INSERT outbox\n(una transacción en task_db)
+  Task --> GW : 200 tarea
+  GW --> App : 200 tarea
+end
+...asíncrono...
+Task -> MQ : relay publica task.completed
+MQ -> Ach : entrega evento
+Ach -> Ach : INSERT processed_events\n(idempotencia, achievement_db)
+alt evento ya procesado
+  Ach -> MQ : ack (se ignora)
+else evento nuevo
+  Ach -> Ach : suma puntos, racha y logros\n(una transacción)
+  Ach -> MQ : ack
+end
+@enduml

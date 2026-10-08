@@ -1,0 +1,32 @@
+' Proyecto: DopamiND | Vista: casos de uso | Versión: 1.0.1 | Actualizado: 2026-10-08
+@startuml 01-casos-de-uso
+!include ../_estilo.puml
+left to right direction
+actor "Usuario" as U
+rectangle "DopamiND (app Android + backend)" {
+  usecase "UC-01 Registrarse" as UC01
+  usecase "UC-02 Iniciar sesión" as UC02
+  usecase "UC-03 Cerrar sesión" as UC03
+  usecase "UC-04 Gestionar tareas" as UC04
+  usecase "UC-05 Usar tarea predefinida" as UC05
+  usecase "UC-06 Completar tarea" as UC06
+  usecase "UC-07 Registrar sesión de enfoque\no mindfulness" as UC07
+  usecase "UC-08 Escribir en el diario" as UC08
+  usecase "UC-09 Consultar logros y progreso" as UC09
+  usecase "UC-10 Renovar sesión (automático)" as UC10
+  usecase "UC-11 Otorgar puntos y logros" as UC11
+}
+U --> UC01
+U --> UC02
+U --> UC03
+U --> UC04
+U --> UC06
+U --> UC07
+U --> UC08
+U --> UC09
+U --> UC10
+UC05 ..> UC04 : <<extend>>
+UC06 ..> UC11 : <<include>>
+UC07 ..> UC11 : <<include>>
+UC08 ..> UC11 : <<include>>
+@enduml
